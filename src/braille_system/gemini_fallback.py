@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 import time
 
-import cv2
+from PIL import Image, ImageOps
 
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 FALLBACK_GEMINI_MODEL = "gemini-2.0-flash"
@@ -61,15 +61,19 @@ def request_gemini_braille_text(
 
 
 def build_gemini_ready_image(image_path: Path) -> Path:
-    image = cv2.imread(str(image_path))
-    if image is None:
+    try:
+        image = Image.open(image_path)
+    except Exception:
         return image_path
 
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    normalized = cv2.equalizeHist(gray)
-    upscaled = cv2.resize(normalized, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
+    grayscale = ImageOps.grayscale(image)
+    normalized = ImageOps.autocontrast(grayscale)
+    upscaled = normalized.resize(
+        (normalized.width * 2, normalized.height * 2),
+        resample=Image.Resampling.LANCZOS,
+    )
     enhanced_path = image_path.with_name(f"{image_path.stem}_gemini_enhanced.png")
-    cv2.imwrite(str(enhanced_path), upscaled)
+    upscaled.save(enhanced_path)
     return enhanced_path
 
 
