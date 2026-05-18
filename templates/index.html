@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Braille to Speech</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body class="app-shell">
+    <main class="page page-home">
+      <section class="hero-card">
+        <span class="eyebrow">Assistive Vision and Speech</span>
+        <h1 class="hero-title">Braille to Speech Assistive System</h1>
+        <p class="hero-copy">
+          Upload a Braille image to extract English text, generate Yoruba-ready speech text,
+          and play audio from a single clean workflow.
+        </p>
+
+        <div class="feature-row">
+          <div class="feature-pill">Braille recognition</div>
+          <div class="feature-pill">Yoruba translation</div>
+          <div class="feature-pill">Speech playback</div>
+        </div>
+
+        {% if error_message %}
+        <section class="error-card" role="alert" aria-live="assertive">
+          <div class="error-card-header">
+            <span class="error-badge">Processing failed</span>
+            <p class="error-copy">We could not finish processing this image. Please review the message below and try again.</p>
+          </div>
+          <p class="error-message">{{ error_message }}</p>
+          <p class="error-hint">Try again with a clearer Braille crop, then resubmit the image.</p>
+        </section>
+        {% endif %}
+
+        <form class="upload-panel" action="/predict" method="post" enctype="multipart/form-data" data-processing-form>
+          <label class="upload-label" for="image">Upload Braille Image</label>
+          <input class="upload-input" id="image" type="file" name="image" accept="image/*" required>
+          <button class="primary-button" type="submit" data-submit-button>Process Image</button>
+        </form>
+      </section>
+    </main>
+
+    <div class="processing-overlay" id="processing-overlay" aria-hidden="true">
+      <div class="processing-panel">
+        <span class="eyebrow">Processing request</span>
+        <h2 class="section-title processing-title">Processing your Braille image</h2>
+        <p class="processing-copy">
+          We are reading the image, translating the result, and preparing speech output for playback.
+        </p>
+        <div class="processing-spinner" aria-hidden="true"></div>
+        <div class="processing-steps">
+          <span class="processing-step">Reading image</span>
+          <span class="processing-step">Translating text</span>
+          <span class="processing-step">Generating speech</span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const form = document.querySelector("[data-processing-form]");
+      const overlay = document.getElementById("processing-overlay");
+      const submitButton = document.querySelector("[data-submit-button]");
+
+      if (form && overlay && submitButton) {
+        form.addEventListener("submit", () => {
+          overlay.classList.add("is-visible");
+          overlay.setAttribute("aria-hidden", "false");
+          submitButton.setAttribute("disabled", "disabled");
+          submitButton.textContent = "Processing...";
+        });
+      }
+    </script>
+  </body>
+</html>

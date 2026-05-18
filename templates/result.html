@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Recognition Result</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body class="app-shell">
+    <main class="page page-result">
+      <section class="topbar">
+        <div>
+          <span class="eyebrow">Processed Output</span>
+          <h1 class="section-title">Recognition Result</h1>
+        </div>
+        <a class="secondary-button" href="{{ url_for('index') }}">Process another image</a>
+      </section>
+
+      <section class="result-grid">
+        <article class="info-card text-card">
+          <span class="card-label">Recognized English text</span>
+          <p class="text-output">{{ recognized_text or 'No text recognized.' }}</p>
+        </article>
+
+        <article class="info-card text-card">
+          <span class="card-label">Yoruba speech text</span>
+          <p class="text-output">{{ translated_text or 'No translated text available.' }}</p>
+        </article>
+
+        <article class="info-card status-card">
+          <span class="card-label">Speech and translation status</span>
+          <div class="status-list">
+            {% if translation_used %}
+            <span class="status-chip success">English to Yoruba translation complete</span>
+            {% elif translation_error %}
+            <span class="status-chip warning">Translation unavailable for this request.</span>
+            {% endif %}
+            <span class="status-chip neutral">Speech language: {{ speech_language }}</span>
+            <span class="status-chip neutral">Recognition engine active</span>
+          </div>
+        </article>
+
+        <article class="info-card audio-card">
+          <span class="card-label">Listen to audio output</span>
+          {% if audio_file %}
+          <audio controls class="audio-player">
+            <source src="{{ url_for('audio_file', filename=audio_file) }}" type="audio/wav">
+          </audio>
+          {% else %}
+          <p class="muted-copy">Audio preview is unavailable for this request.</p>
+          {% endif %}
+        </article>
+      </section>
+    </main>
+  </body>
+</html>
