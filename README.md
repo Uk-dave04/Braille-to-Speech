@@ -53,6 +53,10 @@ The live app now uses Spitch for Yoruba TTS. Set your Spitch API key before star
 
 Then close and reopen PowerShell before launching the Flask app.
 
+## Render deployment note
+
+The deployed app uses a longer Gunicorn timeout because Gemini recognition and Yoruba translation can take longer than the default 30 seconds on cold or busy requests.
+
 If Spitch is unavailable, the app returns an error for that request instead of silently falling back to another speech engine.
 
 ## Training workflow

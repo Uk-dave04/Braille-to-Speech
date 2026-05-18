@@ -3,4 +3,4 @@ services:
     name: braille-to-speech-assistive
     runtime: python
     buildCommand: pip install -r requirements-render.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn --timeout 180 app:app
