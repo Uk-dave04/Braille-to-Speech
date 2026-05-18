@@ -23,6 +23,26 @@ def test_upload_route_requires_file():
     assert response.status_code == 400
 
 
+def test_upload_route_returns_error_when_uploaded_file_cannot_be_saved(monkeypatch):
+    from app import app
+    from werkzeug.datastructures import FileStorage
+
+    def fail_save(self, dst, buffer_size=16384):
+        raise OSError("disk unavailable")
+
+    monkeypatch.setattr(FileStorage, "save", fail_save)
+
+    client = app.test_client()
+    response = client.post(
+        "/predict",
+        data={"image": (BytesIO(b"fake-image-bytes"), "sample.png")},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 502
+    assert b"Unable to store the uploaded image" in response.data
+
+
 def test_audio_route_returns_404_for_missing_file():
     from app import app
 

@@ -30,8 +30,11 @@ def predict():
     if Path(filename).suffix.lower() not in ALLOWED_EXTENSIONS:
         return {"error": "Unsupported file type"}, 400
 
-    uploaded_path = UPLOAD_DIR / filename
-    uploaded.save(uploaded_path)
+    try:
+        uploaded_path = UPLOAD_DIR / filename
+        uploaded.save(uploaded_path)
+    except Exception as exc:
+        return render_template("index.html", error_message=f"Unable to store the uploaded image: {exc}"), 502
 
     try:
         english_text = normalize_text_for_tts(recognize_braille_with_gemini(uploaded_path))
