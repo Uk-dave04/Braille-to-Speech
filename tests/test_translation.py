@@ -68,4 +68,4 @@ def test_translate_english_to_yoruba_retries_and_falls_back_on_503(monkeypatch):
     result = translate_english_to_yoruba("good morning")
 
     assert result.translated_text == "e kaaro"
-    assert calls == ["gemini-2.0-flash", "gemini-2.0-flash", "gemini-2.5-flash"]
+    assert calls == ["gemini-2.0-flash", "gemini-2.0-flash", "gemini-2.0-flash"]

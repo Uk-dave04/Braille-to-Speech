@@ -8,8 +8,8 @@ from .utils import normalize_text_for_tts
 
 DEFAULT_GEMINI_TRANSLATION_MODEL = "gemini-2.0-flash"
 FALLBACK_GEMINI_TRANSLATION_MODEL = "gemini-2.5-flash"
-MAX_ATTEMPTS_PER_MODEL = 2
-RETRY_DELAY_SECONDS = 1.0
+MAX_ATTEMPTS_PER_MODEL = 3
+RETRY_DELAY_SECONDS = 2.0
 TRANSLATION_PROMPT_TEMPLATE = (
     "Translate the following English text into natural, fully diacritized Yoruba suitable for text-to-speech. "
     "Preserve Yoruba tone marks and underdots where needed. Return only the Yoruba translation with no explanation "
@@ -25,6 +25,10 @@ class GeminiTranslationError(RuntimeError):
 def _is_transient_gemini_overload_error(message: str) -> bool:
     upper_message = message.upper()
     return "503" in upper_message and "UNAVAILABLE" in upper_message
+
+
+def _retry_delay_for_attempt(attempt: int) -> float:
+    return RETRY_DELAY_SECONDS * (attempt + 1)
 
 
 @dataclass
@@ -75,7 +79,7 @@ def translate_english_to_yoruba(text: str) -> TranslationResult:
                 )
             except GeminiTranslationError as exc:
                 if _is_transient_gemini_overload_error(str(exc)) and attempt < MAX_ATTEMPTS_PER_MODEL - 1:
-                    time.sleep(RETRY_DELAY_SECONDS)
+                    time.sleep(_retry_delay_for_attempt(attempt))
                     last_error = exc
                     continue
                 last_error = exc
@@ -84,7 +88,7 @@ def translate_english_to_yoruba(text: str) -> TranslationResult:
                 if _is_transient_gemini_overload_error(str(exc)):
                     last_error = exc
                     if attempt < MAX_ATTEMPTS_PER_MODEL - 1:
-                        time.sleep(RETRY_DELAY_SECONDS)
+                        time.sleep(_retry_delay_for_attempt(attempt))
                         continue
                     break
                 raise GeminiTranslationError(str(exc)) from exc

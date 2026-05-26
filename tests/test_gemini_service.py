@@ -78,7 +78,7 @@ def test_recognize_braille_with_gemini_retries_and_falls_back_on_503(monkeypatch
     monkeypatch.setattr("braille_system.gemini_fallback.request_gemini_braille_text", flaky)
 
     assert recognize_braille_with_gemini(image_path) == "recognized text"
-    assert calls == ["gemini-2.5-flash", "gemini-2.5-flash", "gemini-2.0-flash"]
+    assert calls == ["gemini-2.5-flash", "gemini-2.5-flash", "gemini-2.5-flash"]
 
 
 def test_recognize_braille_with_gemini_uses_second_prompt_after_empty_response(monkeypatch, tmp_path: Path):

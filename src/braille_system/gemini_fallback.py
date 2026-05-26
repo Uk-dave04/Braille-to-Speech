@@ -6,8 +6,8 @@ from PIL import Image, ImageOps
 
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 FALLBACK_GEMINI_MODEL = "gemini-2.0-flash"
-MAX_ATTEMPTS_PER_MODEL = 2
-RETRY_DELAY_SECONDS = 1.0
+MAX_ATTEMPTS_PER_MODEL = 3
+RETRY_DELAY_SECONDS = 2.0
 BRAILLE_PROMPT = (
     "You are reading a Braille image. Extract only the plain English text represented "
     "by the Braille dots. Return only the text itself with no explanation, no markdown, "
@@ -27,6 +27,10 @@ class GeminiRecognitionError(RuntimeError):
 def _is_transient_gemini_overload_error(message: str) -> bool:
     upper_message = message.upper()
     return "503" in upper_message and "UNAVAILABLE" in upper_message
+
+
+def _retry_delay_for_attempt(attempt: int) -> float:
+    return RETRY_DELAY_SECONDS * (attempt + 1)
 
 
 def request_gemini_braille_text(
@@ -94,7 +98,7 @@ def recognize_braille_with_gemini(image_path: Path) -> str:
                     )
                 except GeminiRecognitionError as exc:
                     if _is_transient_gemini_overload_error(str(exc)) and attempt < MAX_ATTEMPTS_PER_MODEL - 1:
-                        time.sleep(RETRY_DELAY_SECONDS)
+                        time.sleep(_retry_delay_for_attempt(attempt))
                         last_error = exc
                         continue
                     last_error = exc
@@ -103,7 +107,7 @@ def recognize_braille_with_gemini(image_path: Path) -> str:
                     if _is_transient_gemini_overload_error(str(exc)):
                         last_error = exc
                         if attempt < MAX_ATTEMPTS_PER_MODEL - 1:
-                            time.sleep(RETRY_DELAY_SECONDS)
+                            time.sleep(_retry_delay_for_attempt(attempt))
                             continue
                         break
                     raise GeminiRecognitionError(str(exc)) from exc

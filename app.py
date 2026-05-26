@@ -15,6 +15,17 @@ ensure_runtime_dirs(Path(__file__).resolve().parent)
 ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".webp"}
 
 
+def _build_processing_error_message(exc: Exception, stage: str) -> str:
+    message = str(exc)
+    upper_message = message.upper()
+    if "503" in upper_message and "UNAVAILABLE" in upper_message:
+        return (
+            f"The {stage} service is temporarily busy. "
+            "Please wait a moment and try again."
+        )
+    return message
+
+
 @app.route("/")
 def index():
     return render_template("index.html", error_message=None)
@@ -39,12 +50,18 @@ def predict():
     try:
         english_text = normalize_text_for_tts(recognize_braille_with_gemini(uploaded_path))
     except Exception as exc:
-        return render_template("index.html", error_message=str(exc)), 502
+        return render_template(
+            "index.html",
+            error_message=_build_processing_error_message(exc, "recognition"),
+        ), 502
 
     try:
         translation = translate_english_to_yoruba(english_text)
     except Exception as exc:
-        return render_template("index.html", error_message=str(exc)), 502
+        return render_template(
+            "index.html",
+            error_message=_build_processing_error_message(exc, "translation"),
+        ), 502
 
     speech_text = translation.translated_text
     speech_language = "yo"

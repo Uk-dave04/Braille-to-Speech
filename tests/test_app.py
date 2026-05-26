@@ -142,6 +142,53 @@ def test_upload_route_returns_error_when_gemini_recognition_fails(monkeypatch):
     assert b"service unavailable" in response.data
 
 
+def test_upload_route_returns_friendly_message_when_recognition_service_is_overloaded(monkeypatch):
+    from app import app
+
+    monkeypatch.setattr(
+        "app.recognize_braille_with_gemini",
+        lambda path: (_ for _ in ()).throw(
+            GeminiRecognitionError(
+                "503 UNAVAILABLE. {'error': {'code': 503, 'message': 'high demand', 'status': 'UNAVAILABLE'}}"
+            )
+        ),
+    )
+
+    client = app.test_client()
+    response = client.post(
+        "/predict",
+        data={"image": (BytesIO(b"fake-image-bytes"), "sample.png")},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 502
+    assert b"recognition service is temporarily busy" in response.data
+
+
+def test_upload_route_returns_friendly_message_when_translation_service_is_overloaded(monkeypatch):
+    from app import app
+
+    monkeypatch.setattr("app.recognize_braille_with_gemini", lambda path: "demo output")
+    monkeypatch.setattr(
+        "app.translate_english_to_yoruba",
+        lambda text: (_ for _ in ()).throw(
+            GeminiTranslationError(
+                "503 UNAVAILABLE. {'error': {'code': 503, 'message': 'high demand', 'status': 'UNAVAILABLE'}}"
+            )
+        ),
+    )
+
+    client = app.test_client()
+    response = client.post(
+        "/predict",
+        data={"image": (BytesIO(b"fake-image-bytes"), "sample.png")},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 502
+    assert b"translation service is temporarily busy" in response.data
+
+
 def test_upload_route_returns_error_when_speech_synthesis_fails(monkeypatch):
     from app import app
 
