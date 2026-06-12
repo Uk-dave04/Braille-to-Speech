@@ -9,14 +9,24 @@ FALLBACK_GEMINI_MODEL = "gemini-2.0-flash"
 MAX_ATTEMPTS_PER_MODEL = 3
 RETRY_DELAY_SECONDS = 2.0
 BRAILLE_PROMPT = (
-    "You are reading a Braille image. Extract only the plain English text represented "
-    "by the Braille dots. Return only the text itself with no explanation, no markdown, "
-    "and no surrounding quotes. If the Braille is unreadable, return an empty string."
+    "You are reading a Grade 1 or Grade 2 English Braille image. Extract only the plain English text "
+    "represented by the Braille dots. Apply standard Braille contractions if Grade 2 is detected. "
+    "Return only the text itself with no explanation, no markdown, and no surrounding quotes. "
+    "If the Braille is unreadable, return an empty string."
 )
 RELAXED_BRAILLE_PROMPT = (
-    "Read this Braille image as carefully as you can and return any readable English text, "
-    "even if partial. Return only the text itself with no explanation, no markdown, and no "
-    "surrounding quotes. If nothing is readable, return an empty string."
+    "Read this English Braille image (Grade 1 or Grade 2) as carefully as you can and return any "
+    "readable English text, even if partial. Apply standard Braille contractions where applicable. "
+    "Return only the text itself with no explanation, no markdown, and no surrounding quotes. "
+    "If nothing is readable, return an empty string."
+)
+GRAMMAR_CORRECTION_PROMPT_TEMPLATE = (
+    "The following English text was automatically extracted from a Braille image and may contain "
+    "recognition errors, missing words, or incomplete sentences. Your job is to correct any errors, "
+    "complete any incomplete words or sentences, and return natural, grammatically correct English. "
+    "Keep the meaning as close as possible to the original. If the text is already correct, return "
+    "it unchanged. Return only the corrected text with no explanation, no markdown, and no surrounding quotes.\n\n"
+    "Text: {text}"
 )
 
 
@@ -53,10 +63,18 @@ def request_gemini_braille_text(
     try:
         client = genai.Client(api_key=resolved_api_key)
         uploaded_file = client.files.upload(file=str(image_path))
-        response = client.models.generate_content(
-            model=model_name,
-            contents=[uploaded_file, prompt],
-        )
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=[uploaded_file, prompt],
+            )
+        finally:
+            try:
+                client.files.delete(name=uploaded_file.name)
+            except Exception:
+                pass
+    except GeminiRecognitionError:
+        raise
     except Exception as exc:
         raise GeminiRecognitionError(str(exc)) from exc
 
@@ -119,3 +137,44 @@ def recognize_braille_with_gemini(image_path: Path) -> str:
     if last_error is not None:
         raise GeminiRecognitionError(str(last_error)) from last_error
     raise GeminiRecognitionError("Gemini returned empty text.")
+
+
+def correct_recognized_text(text: str, api_key: str | None = None) -> str:
+    """Use Gemini to fix incomplete or garbled braille-recognized text into
+    a grammatically correct English sentence.  Falls back to the original
+    text if Gemini is unavailable or returns nothing."""
+    if not text or not text.strip():
+        return text
+
+    try:
+        from google import genai
+    except ImportError:
+        return text
+
+    resolved_api_key = api_key or os.getenv("GEMINI_API_KEY", "").strip()
+    if not resolved_api_key:
+        return text
+
+    prompt = GRAMMAR_CORRECTION_PROMPT_TEMPLATE.format(text=text.strip())
+    last_error: Exception | None = None
+
+    for model_name in (DEFAULT_GEMINI_MODEL, FALLBACK_GEMINI_MODEL):
+        for attempt in range(MAX_ATTEMPTS_PER_MODEL):
+            try:
+                client = genai.Client(api_key=resolved_api_key)
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                )
+                corrected = " ".join((response.text or "").split())
+                if corrected:
+                    return corrected
+            except Exception as exc:
+                last_error = exc
+                if _is_transient_gemini_overload_error(str(exc)) and attempt < MAX_ATTEMPTS_PER_MODEL - 1:
+                    time.sleep(_retry_delay_for_attempt(attempt))
+                    continue
+                break  # non-transient error — try next model
+
+    # If all attempts failed, return the original text unchanged
+    return text

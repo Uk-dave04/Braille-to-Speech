@@ -165,6 +165,30 @@ def test_upload_route_returns_friendly_message_when_recognition_service_is_overl
     assert b"recognition service is temporarily busy" in response.data
 
 
+def test_upload_route_returns_friendly_message_when_recognition_is_rate_limited(monkeypatch):
+    from app import app
+
+    monkeypatch.setattr(
+        "app.recognize_braille_with_gemini",
+        lambda path: (_ for _ in ()).throw(
+            GeminiRecognitionError(
+                "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'quota exceeded', "
+                "'status': 'RESOURCE_EXHAUSTED'}}"
+            )
+        ),
+    )
+
+    client = app.test_client()
+    response = client.post(
+        "/predict",
+        data={"image": (BytesIO(b"fake-image-bytes"), "sample.png")},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 502
+    assert b"recognition service is temporarily busy" in response.data
+
+
 def test_upload_route_returns_friendly_message_when_translation_service_is_overloaded(monkeypatch):
     from app import app
 

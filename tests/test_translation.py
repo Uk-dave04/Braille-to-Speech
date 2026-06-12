@@ -69,3 +69,27 @@ def test_translate_english_to_yoruba_retries_and_falls_back_on_503(monkeypatch):
 
     assert result.translated_text == "e kaaro"
     assert calls == ["gemini-2.0-flash", "gemini-2.0-flash", "gemini-2.0-flash"]
+
+
+def test_translate_english_to_yoruba_retries_rate_limit_errors(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setattr("braille_system.translation.time.sleep", lambda seconds: None)
+
+    calls = 0
+
+    def flaky(text, api_key=None, model_name="gemini-2.0-flash"):
+        nonlocal calls
+        calls += 1
+        if calls < 3:
+            raise RuntimeError(
+                "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'quota exceeded', "
+                "'status': 'RESOURCE_EXHAUSTED'}}"
+            )
+        return "e kaaro"
+
+    monkeypatch.setattr("braille_system.translation.request_gemini_yoruba_translation", flaky)
+
+    result = translate_english_to_yoruba("good morning")
+
+    assert result.translated_text == "e kaaro"
+    assert calls == 3

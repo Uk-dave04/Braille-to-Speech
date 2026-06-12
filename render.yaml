@@ -3,4 +3,9 @@ services:
     name: braille-to-speech-assistive
     runtime: python
     buildCommand: pip install -r requirements-render.txt
-    startCommand: gunicorn --timeout 420 app:app
+    startCommand: gunicorn --timeout 420 --workers 2 --bind 0.0.0.0:$PORT app:app
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SPITCH_API_KEY
+        sync: false

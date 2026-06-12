@@ -81,6 +81,31 @@ def test_recognize_braille_with_gemini_retries_and_falls_back_on_503(monkeypatch
     assert calls == ["gemini-2.5-flash", "gemini-2.5-flash", "gemini-2.5-flash"]
 
 
+def test_recognize_braille_with_gemini_retries_rate_limit_errors(monkeypatch, tmp_path: Path):
+    image_path = tmp_path / "sample.png"
+    image_path.write_bytes(b"demo")
+
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setattr("braille_system.gemini_fallback.time.sleep", lambda seconds: None)
+
+    calls = 0
+
+    def flaky(image_path, api_key=None, model_name="gemini-2.5-flash", prompt=None):
+        nonlocal calls
+        calls += 1
+        if calls < 3:
+            raise RuntimeError(
+                "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'quota exceeded', "
+                "'status': 'RESOURCE_EXHAUSTED'}}"
+            )
+        return "recognized text"
+
+    monkeypatch.setattr("braille_system.gemini_fallback.request_gemini_braille_text", flaky)
+
+    assert recognize_braille_with_gemini(image_path) == "recognized text"
+    assert calls == 3
+
+
 def test_recognize_braille_with_gemini_uses_second_prompt_after_empty_response(monkeypatch, tmp_path: Path):
     image_path = tmp_path / "sample.png"
     image_path.write_bytes(b"demo")

@@ -6,8 +6,8 @@ from google import genai
 
 from .utils import normalize_text_for_tts
 
-DEFAULT_GEMINI_TRANSLATION_MODEL = "gemini-2.0-flash"
-FALLBACK_GEMINI_TRANSLATION_MODEL = "gemini-2.5-flash"
+DEFAULT_GEMINI_TRANSLATION_MODEL = "gemini-2.5-flash"
+FALLBACK_GEMINI_TRANSLATION_MODEL = "gemini-2.0-flash"
 MAX_ATTEMPTS_PER_MODEL = 3
 RETRY_DELAY_SECONDS = 2.0
 TRANSLATION_PROMPT_TEMPLATE = (
@@ -99,7 +99,8 @@ def translate_english_to_yoruba(text: str) -> TranslationResult:
                     translated_text=translated_text,
                     used_translation=True,
                 )
-            raise GeminiTranslationError("Gemini returned empty text.")
+            # Empty response — try next attempt / model
+            last_error = GeminiTranslationError("Gemini returned empty text.")
 
     if last_error is not None:
         raise GeminiTranslationError(str(last_error)) from last_error
